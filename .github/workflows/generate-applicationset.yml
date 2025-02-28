@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       features:
-        description: "Select Features (comma-separated: feature-a,feature-b)"
+        description: "Select Features (comma-separated: Software Hub, IKC, DataStage, Awesomeness)"
         required: true
       namespace:
         description: "Enter Kubernetes Namespace"
