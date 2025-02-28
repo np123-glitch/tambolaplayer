@@ -1,5 +1,14 @@
-name: Generate ApplicationSet from Issue
-on: workflow_dispatch
+name: Generate ApplicationSet
+on:
+  workflow_dispatch:
+    inputs:
+      features:
+        description: "Select Features (comma-separated: feature-a,feature-b)"
+        required: true
+      namespace:
+        description: "Enter Kubernetes Namespace"
+        required: true
+        default: "default"
 
 jobs:
   generate-appset:
@@ -8,13 +17,13 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Extract Issue Data
-        id: extract
+      - name: Parse Features
+        id: parse
         run: |
-          FEATURES=$(jq -r '.issue.body' $GITHUB_EVENT_PATH | grep 'Feature' | awk '{print $2}')
-          NS=$(jq -r '.issue.body' $GITHUB_EVENT_PATH | grep 'Namespace' | awk '{print $2}')
-          echo "FEATURES=${FEATURES}" >> $GITHUB_ENV
-          echo "NAMESPACE=${NS}" >> $GITHUB_ENV
+          echo "Selected Features: ${{ github.event.inputs.features }}"
+          FEATURES=$(echo "${{ github.event.inputs.features }}" | tr ',' ' ')
+          echo "FEATURES=$FEATURES" >> $GITHUB_ENV
+          echo "NAMESPACE=${{ github.event.inputs.namespace }}" >> $GITHUB_ENV
 
       - name: Generate ApplicationSet YAML
         run: |
@@ -27,34 +36,33 @@ jobs:
             generators:
               - list:
                   elements:
-                    - name: ${FEATURES}
-                      namespace: ${NAMESPACE}
+                    $(for feature in $FEATURES; do echo "- name: $feature"; done)
             template:
               metadata:
-                name: '${FEATURES}'
+                name: '{{name}}'
               spec:
                 project: default
                 source:
                   repoURL: https://github.com/${{ github.repository }}
                   targetRevision: main
-                  path: charts/${FEATURES}
+                  path: charts/{{name}}
                 destination:
                   server: https://kubernetes.default.svc
-                  namespace: ${NAMESPACE}
+                  namespace: "${{ github.event.inputs.namespace }}"
                 syncPolicy:
                   automated:
                     prune: true
                     selfHeal: true
           EOF
 
-      - name: Commit and Push ApplicationSet
+      - name: Upload ApplicationSet YAML as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: application-set
+          path: application-set.yaml
+
+      - name: Commit ApplicationSet to Repository (Optional)
         uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: "Updated ApplicationSet for ${FEATURES}"
+          commit_message: "Updated ApplicationSet"
           file_pattern: "application-set.yaml"
-
-      - name: Close Issue
-        uses: peter-evans/close-issue@v2
-        with:
-          issue-number: ${{ github.event.issue.number }}
-          comment: "Your ApplicationSet has been generated and committed!"
