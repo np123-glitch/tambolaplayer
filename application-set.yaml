@@ -6,20 +6,20 @@ spec:
   generators:
     - list:
         elements:
-          - name: 
-            namespace: 
+          - name: feature-a
+- name: feature-b
   template:
     metadata:
-      name: ''
+      name: '{{name}}'
     spec:
       project: default
       source:
         repoURL: https://github.com/np123-glitch/tambolaplayer
         targetRevision: main
-        path: charts/
+        path: charts/{{name}}
       destination:
         server: https://kubernetes.default.svc
-        namespace: 
+        namespace: "default"
       syncPolicy:
         automated:
           prune: true
