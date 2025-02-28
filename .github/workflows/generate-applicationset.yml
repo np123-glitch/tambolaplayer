@@ -1,0 +1,62 @@
+name: Generate ApplicationSet from Issue
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  generate-appset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Extract Issue Data
+        id: extract
+        run: |
+          FEATURES=$(jq -r '.issue.body' $GITHUB_EVENT_PATH | grep 'Feature' | awk '{print $2}')
+          NS=$(jq -r '.issue.body' $GITHUB_EVENT_PATH | grep 'Namespace' | awk '{print $2}')
+          echo "FEATURES=${FEATURES}" >> $GITHUB_ENV
+          echo "NAMESPACE=${NS}" >> $GITHUB_ENV
+
+      - name: Generate ApplicationSet YAML
+        run: |
+          cat <<EOF > application-set.yaml
+          apiVersion: argoproj.io/v1alpha1
+          kind: ApplicationSet
+          metadata:
+            name: custom-appset
+          spec:
+            generators:
+              - list:
+                  elements:
+                    - name: ${FEATURES}
+                      namespace: ${NAMESPACE}
+            template:
+              metadata:
+                name: '${FEATURES}'
+              spec:
+                project: default
+                source:
+                  repoURL: https://github.com/${{ github.repository }}
+                  targetRevision: main
+                  path: charts/${FEATURES}
+                destination:
+                  server: https://kubernetes.default.svc
+                  namespace: ${NAMESPACE}
+                syncPolicy:
+                  automated:
+                    prune: true
+                    selfHeal: true
+          EOF
+
+      - name: Commit and Push ApplicationSet
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Updated ApplicationSet for ${FEATURES}"
+          file_pattern: "application-set.yaml"
+
+      - name: Close Issue
+        uses: peter-evans/close-issue@v2
+        with:
+          issue-number: ${{ github.event.issue.number }}
+          comment: "Your ApplicationSet has been generated and committed!"
