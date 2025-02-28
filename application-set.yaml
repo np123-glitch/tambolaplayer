@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: custom-appset
+spec:
+  generators:
+    - list:
+        elements:
+          - name: 
+            namespace: 
+  template:
+    metadata:
+      name: ''
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/np123-glitch/tambolaplayer
+        targetRevision: main
+        path: charts/
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
