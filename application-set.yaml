@@ -6,8 +6,9 @@ spec:
   generators:
     - list:
         elements:
-          - name: feature-a
-- name: feature-b
+          - name: Software
+- name: Hub
+- name: DataStage
   template:
     metadata:
       name: '{{name}}'
